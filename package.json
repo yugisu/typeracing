@@ -25,6 +25,7 @@
     "concurrently": "^4.1.1",
     "nodemon": "^1.19.1",
     "parcel": "^1.12.3",
+    "sass": "^1.22.3",
     "ts-node": "^8.3.0",
     "typescript": "^3.5.2"
   }
