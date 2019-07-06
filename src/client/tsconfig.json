@@ -1,0 +1,7 @@
+{
+  "extends": "../../tsconfig.base",
+  "include": ["./**/*"],
+  "compilerOptions": {
+    "lib": ["dom", "es2018"]
+  }
+}

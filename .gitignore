@@ -1,0 +1,12 @@
+# Node modules
+node_modules
+
+# Build & dev generated directories
+build
+dist
+
+# Parcel cache
+.cache
+
+# Local configuration
+.env
