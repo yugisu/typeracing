@@ -1,0 +1,165 @@
+@import url('https://fonts.googleapis.com/css?family=Comfortaa|Roboto:400,700&display=swap&subset=cyrillic');
+
+$primary: #fd8787;
+$secondary: #76d6d6;
+$secondary-light: #d6f1f5;
+$black: #262322;
+$grey: #4a4a48;
+
+html {
+  box-sizing: border-box;
+  font-family: Roboto, sans-serif;
+
+  color: $black;
+}
+
+*,
+*::before,
+*::after {
+  color: inherit;
+  box-sizing: inherit;
+}
+
+input,
+textarea,
+button {
+  outline: none;
+
+  padding: 0.5rem;
+  border: solid 1px $grey;
+  border-radius: 0.25rem;
+
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
+}
+
+button {
+  width: max-content;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+
+  color: $grey;
+  font-size: 1rem;
+
+  cursor: pointer;
+  background: lighten($primary, 20%);
+  transition: all 0.16s;
+}
+
+button:hover {
+  color: #ffffff;
+  background: $primary;
+}
+
+button:active {
+  box-shadow: 0 3px 5px -2px rgba(0, 0, 0, 0.4);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+}
+
+.header {
+  height: 3rem;
+
+  padding: 0 4rem;
+  display: flex;
+  align-items: center;
+
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
+
+  &__logo {
+    width: 7rem;
+    height: 100%;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    color: #000000;
+    font-size: 1.5rem;
+    font-family: 'Comfortaa', cursive;
+    font-weight: bold;
+    text-shadow: 1px 1px 1px $secondary-light;
+    text-decoration: none;
+
+    background: $primary;
+    box-shadow: 1px 1px 5px $secondary-light, 0 5px 10px -5px $primary;
+  }
+}
+
+.main {
+  padding: 1rem 6rem;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.login-form {
+  max-width: 400px;
+
+  padding: 0.5rem;
+  display: grid;
+  grid-auto-flow: row;
+  row-gap: 0.5rem;
+
+  border-radius: 0.5rem;
+}
+
+.columns {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  column-gap: 2rem;
+
+  > * {
+    height: fit-content;
+  }
+}
+
+.track {
+  max-width: 40rem;
+  font-size: 1.2rem;
+
+  &__completed {
+    position: relative;
+    background: $primary;
+
+    animation: blinking 1s 200ms alternate infinite;
+  }
+}
+
+.players {
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+
+  background: lighten($grey, 60%);
+}
+
+.player {
+  padding: 0.5rem;
+
+  &__name {
+    margin: 0;
+  }
+
+  &__progress {
+    width: 100%;
+  }
+
+  &--disconnected {
+    opacity: 0.3;
+  }
+}
+
+@keyframes blinking {
+
+  from {
+    background-color: $primary;
+  }
+
+  to {
+    background-color: lighten($primary, 10%);
+  }
+}
