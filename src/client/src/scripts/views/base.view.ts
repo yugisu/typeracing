@@ -1,17 +1,17 @@
 export class View {
   root: HTMLElement;
 
-  constructor(title?: string) {
+  constructor(title?: string, showContents = true) {
     this.root = document.createElement('main');
     this.root.classList.add('main');
     this.root.id = 'app-main';
 
     title && this.addTitle(title);
-    this.addContents();
+    showContents && this.addContents();
   }
 
   addTitle(text: string) {
-    const title = this.create('h1', { innerText: text });
+    const title = this.create('h1', { innerText: text, id: 'app-title' });
 
     this.root.prepend(title);
   }

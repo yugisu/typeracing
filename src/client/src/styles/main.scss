@@ -105,3 +105,61 @@ body {
 
   border-radius: 0.5rem;
 }
+
+.columns {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  column-gap: 2rem;
+
+  > * {
+    height: fit-content;
+  }
+}
+
+.track {
+  max-width: 40rem;
+  font-size: 1.2rem;
+
+  &__completed {
+    position: relative;
+    background: $primary;
+
+    animation: blinking 1s 200ms alternate infinite;
+  }
+}
+
+.players {
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+
+  background: lighten($grey, 60%);
+}
+
+.player {
+  padding: 0.5rem;
+
+  &__name {
+    margin: 0;
+  }
+
+  &__progress {
+    width: 100%;
+  }
+
+  &--disconnected {
+    opacity: 0.3;
+  }
+}
+
+@keyframes blinking {
+
+  from {
+    background-color: $primary;
+  }
+
+  to {
+    background-color: lighten($primary, 10%);
+  }
+}

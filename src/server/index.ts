@@ -1,14 +1,13 @@
 import path from 'path';
 import express from 'express';
 import passport from 'passport';
-import jwt from 'jsonwebtoken';
 import socketIO from 'socket.io';
 import { createServer } from 'http';
 
 import { viewRouter } from './routes/view.route';
-import { raceRouter } from './routes/race.route';
 import { initializePassport } from './security/init-passport';
 import { authRouter } from './routes/auth.route';
+import { initializeSocket } from './socket/init.socket';
 
 const app = express();
 const server = createServer(app);
@@ -25,10 +24,9 @@ app
   .use(express.static(path.join(__dirname, '../client/dist')));
 
 // Routes
-app
-  .use('/login', authRouter)
-  .use('/race', /* jwtMiddleware, */ raceRouter)
-  .use('*', viewRouter);
+app.use('/login', authRouter).use('*', viewRouter);
+
+initializeSocket(io);
 
 const port = process.env.PORT || 3000;
 server.listen(port, () => {
