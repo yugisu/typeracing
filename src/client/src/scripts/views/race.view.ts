@@ -23,7 +23,7 @@ export class RaceView extends StatefulView<State> {
   private io: SocketIOClient.Socket;
 
   constructor() {
-    super('Race', false);
+    super('🏎️ Race', false);
     this.io = socketIO.connect();
 
     const token = localStorage.getItem('jwt');
@@ -65,7 +65,7 @@ export class RaceView extends StatefulView<State> {
       countdown: roomState.countdown,
     });
 
-    document.getElementById('app-title')!.innerText = `Race "${roomName}"`;
+    document.getElementById('app-title')!.innerText = `🏎️ Race "${roomName}"`;
 
     this.clearRoot();
     this.addContents();
@@ -125,6 +125,7 @@ export class RaceView extends StatefulView<State> {
 
   showCountdown() {
     const cd = this.create('h1', {
+      className: 'countdown',
       id: 'countdown',
       innerText: this.state.countdown.toString(),
     });
@@ -191,7 +192,7 @@ export class RaceView extends StatefulView<State> {
     const players = document.getElementById('players');
 
     const player = this.create('div', {
-      className: 'player',
+      className: `player${name === this.state.username ? ' player--self' : ''}`,
       id: `player-${name}`,
       innerHTML: `
         <h3 class="player__name">${name}</h3>

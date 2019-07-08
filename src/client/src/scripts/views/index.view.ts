@@ -2,12 +2,13 @@ import { View } from './base.view';
 
 export class IndexView extends View {
   constructor() {
-    super('Welcome!');
+    super('🔥 Ready to burn? 🔥');
   }
 
   addContents() {
     const text = this.create<HTMLLinkElement>('a', {
-      innerHTML: '<h3>Show me tracks already!</h3>',
+      className: 'to-race',
+      innerHTML: '<h3>Get me into the race!</h3>',
       href: '/race',
     });
 
