@@ -1,24 +1,17 @@
 import jwt from 'jsonwebtoken';
 
 import { User } from 'shared/types/user.type';
-import { RaceState } from 'shared/types/racestate.type';
+import { RoomState } from 'shared/types/room-state.type';
 import { trackRepository } from 'server/repository/tracks.repository';
 
-const races: { [roomName: string]: RaceState } = {
-  first: {
-    active: false,
-    time: 30,
-    progresses: {},
-    disconnected: new Set(),
-  },
-};
+const rooms: { [roomName: string]: RoomState } = {};
 
 const onConnection = async () => {
   const track = await trackRepository.getById('1');
 
-  let roomName: string;
-
   return (socket: SocketIO.Socket) => {
+    let roomName: string;
+    let room: RoomState;
     let userLogin: string;
     let roomCountdown: NodeJS.Timeout;
 
@@ -27,41 +20,35 @@ const onConnection = async () => {
         const userFromToken = jwt.verify(token, 'secret') as User;
         userLogin = userFromToken!.login;
 
-        roomName = findRoom(userLogin);
+        [roomName, room] = findRoom(userLogin);
 
         socket.join(roomName);
-        races[roomName].disconnected.delete(userLogin);
+        room.disconnected.delete(userLogin);
 
         // Set countdown
-        if (races[roomName].progresses[userLogin] === undefined) {
-          if (Object.keys(races[roomName].progresses).length === 0) {
-            roomCountdown = setInterval(() => {
-              if (races[roomName].time > 0) {
-                socket.in(roomName).emit('roomCountdown', races[roomName].time);
-                races[roomName].time = races[roomName].time - 1;
-              } else {
-                races[roomName].active = true;
+        if (room.progresses[userLogin] === undefined) {
+          room.progresses[userLogin] = 0;
 
-                socket.emit('roomStart', races[roomName]);
+          if (Object.keys(room.progresses).length === 1) {
+            roomCountdown = setInterval(() => {
+              if (room.time > 0) {
+                socket.in(roomName).emit('roomCountdown', room.time);
+                room.time = room.time - 1;
+              } else {
+                room.active = true;
+
+                socket.emit('roomStart', room);
                 clearInterval(roomCountdown);
               }
             }, 500);
           }
-
-          races[roomName].progresses[userLogin] = 0;
         }
 
-        socket.emit(
-          'subscribeResponse',
-          userLogin,
-          track!.text,
-          races[roomName],
-          roomName
-        );
+        socket.emit('subscribeResponse', userLogin, track!.text, room, roomName);
 
         socket.to(roomName).emit('playerConnected', {
           userLogin,
-          progress: races[roomName].progresses[userLogin],
+          progress: room.progresses[userLogin],
         });
       } catch (error) {
         socket.emit('checkJWTFailed');
@@ -70,19 +57,21 @@ const onConnection = async () => {
 
     socket.on('disconnect', () => {
       socket.to(roomName).emit('playerDisconnected', userLogin);
-      races[roomName].disconnected.add(userLogin);
-      let shouldStopRace = true;
-      Object.keys(races[roomName].progresses).forEach((user) => {
-        shouldStopRace = shouldStopRace && races[roomName].disconnected.has(user);
-      });
+
+      room.disconnected.add(userLogin);
+
+      const shouldStopRace = Object.keys(room.progresses).reduce((should, user) => {
+        return should && room.disconnected.has(user);
+      }, true);
 
       if (shouldStopRace) {
         addRoom(roomName);
+        clearInterval(roomCountdown);
       }
     });
 
     socket.on('progressChange', ({ login, progress }) => {
-      races[roomName].progresses[login] = progress;
+      room.progresses[login] = progress;
 
       socket.broadcast.emit('opponentProgress', { login, progress });
     });
@@ -92,29 +81,29 @@ const onConnection = async () => {
 /**
  * Finds not active room in which given user did not take part earlier
  */
-function findRoom(username: string) {
-  const freeRoom = Object.entries(races).find(
-    ([name, state]) => state.progresses[username] !== undefined || !state.active
+function findRoom(username: string): [string, RoomState] {
+  const freeRoom = Object.entries(rooms).find(
+    ([_, state]) => state.progresses[username] !== undefined || !state.active
   );
 
   if (!freeRoom) {
     return addRoom();
   } else {
-    return freeRoom[0];
+    return freeRoom;
   }
 }
 
-function addRoom(name?: string) {
+function addRoom(name?: string): [string, RoomState] {
   const roomName = name || Math.random().toString();
 
-  races[roomName] = {
+  rooms[roomName] = {
     active: false,
     time: 30,
     progresses: {},
     disconnected: new Set(),
   };
 
-  return roomName;
+  return [roomName, rooms[roomName]];
 }
 
 export const initializeSocket = async (io: SocketIO.Server) => {

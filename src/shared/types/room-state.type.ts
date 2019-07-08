@@ -1,4 +1,4 @@
-export type RaceState = {
+export type RoomState = {
   active: boolean;
   time: number;
   progresses: { [login: string]: number };
