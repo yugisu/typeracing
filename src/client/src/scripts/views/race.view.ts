@@ -90,9 +90,8 @@ export class RaceView extends StatefulView<State> {
     document.getElementById('countdown')!.innerText = countdown.toString();
   };
 
-  onRoomStart = (roomState: RoomState) => {
+  onRoomStart = () => {
     this.showTrack();
-    Object.entries(roomState.progresses).forEach((player) => this.addPlayer(...player));
   };
 
   onOpponentProgress = ({ username, progress }: Player) =>

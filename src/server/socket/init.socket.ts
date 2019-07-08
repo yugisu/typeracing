@@ -46,7 +46,7 @@ const onConnection = async (io: SocketIO.Server) => {
               room.active = true;
 
               console.log('>> Room', roomName, 'starting');
-              io.in(roomName).emit('roomStart', room);
+              io.in(roomName).emit('roomStart');
               clearInterval(roomCountdown);
             }
           }, 500);
