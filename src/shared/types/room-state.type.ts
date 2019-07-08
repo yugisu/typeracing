@@ -1,6 +1,7 @@
 export type RoomState = {
   active: boolean;
-  time: number;
+  countdown: number;
+  track: string;
   progresses: { [login: string]: number };
   disconnected: Set<string>;
 };
