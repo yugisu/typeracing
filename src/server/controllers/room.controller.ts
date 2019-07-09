@@ -60,6 +60,7 @@ export class Room implements Stateful<RoomState> {
       countdown: 15,
       progresses: {},
       disconnected: new Set(),
+      finished: new Set(),
     };
 
     this.state = { ...initialState, ...givenState };
@@ -191,6 +192,9 @@ export class Room implements Stateful<RoomState> {
     this.setState({
       disconnected: newDisconnected,
     });
+
+    this.checkIfShouldFinishRace();
+
     this.notifier.emitSocket('playerLeft', username);
   };
 
@@ -202,13 +206,31 @@ export class Room implements Stateful<RoomState> {
   };
 
   private onPlayerProgress = (username: string, progress: number) => {
-    const { progresses } = this.state;
+    const { progresses, track } = this.state;
 
     progresses[username] = progress;
+
+    if (progress === track.length) {
+      const finished = new Set(this.state.finished);
+      finished.add(username);
+      this.setState({ finished });
+
+      this.checkIfShouldFinishRace();
+    }
 
     this.setState({
       progresses,
     });
+  };
+
+  checkIfShouldFinishRace = () => {
+    const { progresses, finished, disconnected } = this.state;
+
+    const shouldFinish = Object.keys(progresses).reduce((should, name) => {
+      return should && (finished.has(name) || disconnected.has(name));
+    }, true);
+
+    if (shouldFinish) this.notifier.emitLocal('roomEnd');
   };
 
   setState = (changes: Partial<RoomState>) => {

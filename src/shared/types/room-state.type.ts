@@ -2,6 +2,7 @@ export type RoomState = {
   active: boolean;
   track: string;
   disconnected: Set<string>;
+  finished: Set<string>;
 } & PRoomState;
 
 export type PRoomState = {
