@@ -1,3 +1,5 @@
+import { Stateful } from 'shared/helpers/stateful.interface';
+
 export class View {
   root: HTMLElement;
 
@@ -43,11 +45,6 @@ export class View {
     rootNode.replaceWith(this.root);
     this.onRender();
   }
-}
-
-interface Stateful<T extends object> {
-  state: T | {};
-  setState: (changes: Partial<T>) => void;
 }
 
 export class StatefulView<T extends object> extends View implements Stateful<T> {
