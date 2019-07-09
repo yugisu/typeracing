@@ -2,6 +2,7 @@ import socketIO from 'socket.io-client';
 
 import { StatefulView } from './base.view';
 import { RoomState } from 'shared/types/room-state.type';
+import { RoomEvent } from 'shared/types/room-event.type';
 
 type State = {
   track: string;
@@ -20,11 +21,10 @@ export class RaceView extends StatefulView<State> {
     countdown: 30,
   };
 
-  private io: SocketIOClient.Socket;
+  private io!: SocketIOClient.Socket;
 
   constructor() {
     super(undefined, false);
-    this.io = socketIO.connect();
 
     const token = localStorage.getItem('jwt');
     if (!token) {
@@ -32,59 +32,71 @@ export class RaceView extends StatefulView<State> {
       return;
     }
 
-    this.io.on('checkJWT', (check: (t: string) => void) => check(token));
-    this.io.on('checkJWTFailed', () => {
-      localStorage.removeItem('jwt');
-      location.replace('/login');
-      return;
+    this.io = socketIO.connect({ query: { token } });
+
+    this.io
+      .on('authFail', this.onAuthFail)
+      .on('authSuccess', this.onAuthSuccess)
+
+      .on('roomCountdown', this.onCountdown)
+      .on('roomStart', this.onRoomStart)
+      .on('roomTime', this.onRoomTime)
+      .on('roomEnd', this.onRoomEnd)
+
+      .on('playerJoined', this.onPlayerJoined)
+      .on('playerLeft', this.onPlayerLeft)
+      .on('playerProgress', this.onPlayerProgress);
+
+    this.io.on('HEY', (arg: any) => {
+      console.log('I hear something:', arg);
     });
 
-    this.io.on('subscribeResponse', this.onSubscribeResponse);
-
-    this.io.on('roomCountdown', this.onCountdown);
-    this.io.on('roomStart', this.onRoomStart);
-
-    this.io.on('playerConnected', this.onPlayerConnected);
-
-    this.io.on('playerDisconnected', this.onPlayerDisconnected);
-
-    this.io.on('opponentProgress', this.onOpponentProgress);
+    this.io.on('haga', (name: string) => {
+      console.log(name);
+    });
   }
 
-  onSubscribeResponse = (
-    username: string,
-    track: string,
-    roomState: RoomState,
-    roomName: string
-  ) => {
+  onAuthFail = () => {
+    localStorage.removeItem('jwt');
+    location.replace('/login');
+  };
+
+  onAuthSuccess = (username: string, roomState: RoomState) => {
+    const { track, progresses, active, countdown } = roomState;
+
     this.setState({
-      track: track,
+      track,
       username: username,
-      progress: roomState.progresses[username],
-      waiting: !roomState.active,
-      countdown: roomState.countdown,
+      progress: progresses[username],
+      waiting: !active,
+      countdown,
     });
 
     this.addContents();
-    this.modifyTopBar(roomName, roomState);
+    this.modifyTopBar(roomState);
+    this.showPlayers(progresses);
     if (this.state.waiting && this.state.countdown) {
       this.showCountdown();
     } else {
       this.showTrack();
     }
-    Object.entries(roomState.progresses).forEach((player) => this.addPlayer(...player));
   };
 
-  onPlayerConnected = ({ username, progress }: Player) => {
+  onPlayerJoined = (username: string, progress: number) => {
     this.addPlayer(username, progress);
 
     const playerAmount = document.getElementById('player-amount__value');
-    playerAmount!.innerText = +playerAmount!.innerText + 1 + '';
+    if (username !== this.state.username) {
+      playerAmount!.innerText = +playerAmount!.innerText + 1 + '';
+    }
   };
 
-  onPlayerDisconnected = (name: string) => {
+  onPlayerLeft = (name: string) => {
     const playerNode = document.getElementById(`player-${name}`);
     playerNode && playerNode.classList.add('player--disconnected');
+
+    const playerAmount = document.getElementById('player-amount__value');
+    playerAmount!.innerText = +playerAmount!.innerText - 1 + '';
   };
 
   onCountdown = (countdown: number) => {
@@ -92,40 +104,95 @@ export class RaceView extends StatefulView<State> {
     document.getElementById('countdown')!.innerText = countdown.toString();
   };
 
-  onRoomStart = () => {
+  onRoomStart = ({ track, progresses, active }: RoomState) => {
+    this.setState({
+      track,
+      progress: progresses[this.state.username],
+      waiting: !active,
+    });
+
+    Object.entries(progresses).forEach((player) => {
+      this.updatePlayer(...player);
+    });
     this.showTrack();
   };
 
-  onOpponentProgress = ({ username, progress }: Player) =>
-    this.updatePlayer(username, progress);
+  onRoomTime = (time: number) => {
+    document.getElementById('room-time__value')!.innerText = time.toString();
+  };
+
+  onRoomEnd = (countdown: number, time: number) => {
+    this.setState({
+      countdown,
+      waiting: true,
+    });
+
+    this.onRoomTime(time);
+    this.showCountdown();
+  };
+
+  onPlayerProgress = (username: string, progress: number) => {
+    if (username !== this.state.username) {
+      this.updatePlayer(username, progress);
+    }
+  };
+
+  addContents() {
+    const content = this.create('div', {
+      className: 'columns',
+    });
+
+    const placeholderContent = this.create('div', {
+      className: 'placeholder',
+      id: 'placeholder',
+    });
+
+    const players = this.create('div', {
+      className: 'players',
+      id: 'players',
+    });
+
+    content.append(placeholderContent, players);
+    this.root.append(content);
+  }
+
+  addInteractivity() {
+    window.addEventListener('keypress', this.onTrackKeystroke);
+  }
+
+  removeInteractivity() {
+    window.removeEventListener('keypress', this.onTrackKeystroke);
+  }
 
   onTrackKeystroke = (e: KeyboardEvent) => {
     e.preventDefault();
 
-    const { track, progress } = this.state;
+    const { track, username } = this.state;
+    let { progress } = this.state;
 
     if (e.key === track[progress]) {
+      progress += 1;
+
       const trackElement = document.getElementById('track');
 
-      this.setState({
-        progress: progress + 1,
-      });
-
-      this.io.emit('progressChange', {
-        username: this.state.username,
-        progress: this.state.progress,
-      });
+      this.io.emit('playerProgress', username, progress);
 
       trackElement!.innerHTML = `
       <span class="track__completed">${
-        this.state.progress ? track.slice(0, this.state.progress) : ''
-      }</span><span>${track.slice(this.state.progress, track.length)}</span>`;
+        progress ? track.slice(0, progress) : ''
+      }</span><span>${track.slice(progress, track.length)}</span>`;
 
-      this.updatePlayer(this.state.username, this.state.progress);
+      this.updatePlayer(username, progress);
+
+      this.setState({
+        progress,
+      });
     }
   };
 
   showCountdown() {
+    this.removeInteractivity();
+
     const cd = this.create('h1', {
       className: 'countdown',
       id: 'countdown',
@@ -159,7 +226,14 @@ export class RaceView extends StatefulView<State> {
     this.addInteractivity();
   }
 
-  modifyTopBar(roomName: string, roomState: RoomState) {
+  showPlayers(progresses: { [player: string]: number }) {
+    const players = document.getElementById('players');
+    players!.childNodes.forEach((child) => players!.removeChild(child));
+
+    Object.entries(progresses).forEach((player) => this.addPlayer(...player));
+  }
+
+  modifyTopBar({ time, progresses, name }: RoomState) {
     const topBar = document.getElementById('top-bar');
     topBar!.childNodes.forEach((child) => topBar!.removeChild(child));
 
@@ -176,35 +250,14 @@ export class RaceView extends StatefulView<State> {
       return barElem;
     };
 
-    const roomNameElem = createBarElem('Room', roomName);
+    const roomNameElem = createBarElem('Room', name);
 
-    const playerAmount = Object.keys(roomState.progresses).length.toString();
+    const timeLeftElem = createBarElem('Time', time.toString(), 'room-time');
+
+    let playerAmount = Object.keys(progresses).length.toString();
     const playerAmountElem = createBarElem('Players', playerAmount, 'player-amount');
 
-    topBar!.append(roomNameElem, playerAmountElem);
-  }
-
-  addContents() {
-    const content = this.create('div', {
-      className: 'columns',
-    });
-
-    const placeholderContent = this.create('div', {
-      className: 'placeholder',
-      id: 'placeholder',
-    });
-
-    const players = this.create('div', {
-      className: 'players',
-      id: 'players',
-    });
-
-    content.append(placeholderContent, players);
-    this.root.append(content);
-  }
-
-  addInteractivity() {
-    window.addEventListener('keypress', this.onTrackKeystroke);
+    topBar!.append(roomNameElem, timeLeftElem, playerAmountElem);
   }
 
   addPlayer(name: string, progress = 0) {
@@ -230,14 +283,9 @@ export class RaceView extends StatefulView<State> {
     }
   }
 
-  updatePlayer(name: string, progress: number) {
-    const playerNode = document.getElementById(`player-${name}`);
+  updatePlayer(username: string, progress: number) {
+    const playerNode = document.getElementById(`player-${username}`);
     playerNode!.classList.remove('player--disconnected');
     playerNode!.querySelector('progress')!.value = progress;
   }
 }
-
-type Player = {
-  username: string;
-  progress: number;
-};
