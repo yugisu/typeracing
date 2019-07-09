@@ -111,8 +111,8 @@ export class RaceView extends StatefulView<State> {
       waiting: !active,
     });
 
-    Object.entries(progresses).forEach((player) => {
-      this.updatePlayer(...player);
+    Object.entries(progresses).forEach(([name, progress]) => {
+      this.updatePlayer(name, progress, false);
     });
     this.showTrack();
   };
@@ -283,9 +283,9 @@ export class RaceView extends StatefulView<State> {
     }
   }
 
-  updatePlayer(username: string, progress: number) {
+  updatePlayer(username: string, progress: number, hard = true) {
     const playerNode = document.getElementById(`player-${username}`);
-    playerNode!.classList.remove('player--disconnected');
+    hard && playerNode!.classList.remove('player--disconnected');
     playerNode!.querySelector('progress')!.value = progress;
   }
 }
