@@ -111,7 +111,11 @@ async function findRoom(username: string): Promise<[string, RoomState]> {
 }
 
 async function addRoom(name?: string): Promise<[string, RoomState]> {
-  const roomName = name || Math.random().toString();
+  let roomName: string;
+
+  do {
+    roomName = name || Math.random().toString();
+  } while (rooms.has(roomName));
 
   const track = (await getRandomTrack())!.text;
 
