@@ -23,7 +23,7 @@ export class RaceView extends StatefulView<State> {
   private io: SocketIOClient.Socket;
 
   constructor() {
-    super('🏎️ Race', false);
+    super(undefined, false);
     this.io = socketIO.connect();
 
     const token = localStorage.getItem('jwt');
@@ -65,10 +65,8 @@ export class RaceView extends StatefulView<State> {
       countdown: roomState.countdown,
     });
 
-    document.getElementById('app-title')!.innerText = `🏎️ Race "${roomName}"`;
-
-    this.clearRoot();
     this.addContents();
+    this.modifyTopBar(roomName, roomState);
     if (this.state.waiting && this.state.countdown) {
       this.showCountdown();
     } else {
@@ -77,8 +75,12 @@ export class RaceView extends StatefulView<State> {
     Object.entries(roomState.progresses).forEach((player) => this.addPlayer(...player));
   };
 
-  onPlayerConnected = ({ username, progress }: Player) =>
+  onPlayerConnected = ({ username, progress }: Player) => {
     this.addPlayer(username, progress);
+
+    const playerAmount = document.getElementById('player-amount__value');
+    playerAmount!.innerText = +playerAmount!.innerText + 1 + '';
+  };
 
   onPlayerDisconnected = (name: string) => {
     const playerNode = document.getElementById(`player-${name}`);
@@ -157,12 +159,29 @@ export class RaceView extends StatefulView<State> {
     this.addInteractivity();
   }
 
-  clearRoot(...nodes: HTMLElement[]) {
-    while (this.root.lastChild && this.root.firstChild !== this.root.lastChild) {
-      this.root.removeChild(this.root.lastChild);
-    }
+  modifyTopBar(roomName: string, roomState: RoomState) {
+    const topBar = document.getElementById('top-bar');
+    topBar!.childNodes.forEach((child) => topBar!.removeChild(child));
 
-    this.root.append(...nodes);
+    const createBarElem = (name: string, value: string, id?: string) => {
+      const barElem = this.create('div', {
+        className: 'top-bar__elem',
+        innerHTML: `
+          <h5 ${id ? `id="${id + '__name'}"` : ''} class="top-bar__elem__name">
+            ${name}</h5>
+          <h2 ${id ? `id="${id + '__value'}"` : ''} class="top-bar__elem__value">
+            ${value}</h2>`,
+      });
+      if (id) barElem.id = id;
+      return barElem;
+    };
+
+    const roomNameElem = createBarElem('Room', roomName);
+
+    const playerAmount = Object.keys(roomState.progresses).length.toString();
+    const playerAmountElem = createBarElem('Players', playerAmount, 'player-amount');
+
+    topBar!.append(roomNameElem, playerAmountElem);
   }
 
   addContents() {
