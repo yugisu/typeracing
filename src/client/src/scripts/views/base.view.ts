@@ -1,3 +1,5 @@
+import { Stateful } from 'shared/helpers/stateful.interface';
+
 export class View {
   root: HTMLElement;
 
@@ -6,14 +8,26 @@ export class View {
     this.root.classList.add('main');
     this.root.id = 'app-main';
 
-    title && this.addTitle(title);
+    this.addTitle(title);
     showContents && this.addContents();
   }
 
-  addTitle(text: string) {
-    const title = this.create('h1', { innerText: text, id: 'app-title' });
+  addTitle(text?: string) {
+    const topBar = this.create('div', {
+      className: 'top-bar',
+      id: 'top-bar',
+    });
 
-    this.root.prepend(title);
+    if (text) {
+      const title = this.create('h1', {
+        innerText: text,
+        className: 'top-bar__title',
+        id: 'app-title',
+      });
+      topBar.prepend(title);
+    }
+
+    this.root.prepend(topBar);
   }
 
   addContents() {}
@@ -31,11 +45,6 @@ export class View {
     rootNode.replaceWith(this.root);
     this.onRender();
   }
-}
-
-interface Stateful<T extends object> {
-  state: T | {};
-  setState: (changes: Partial<T>) => void;
 }
 
 export class StatefulView<T extends object> extends View implements Stateful<T> {
