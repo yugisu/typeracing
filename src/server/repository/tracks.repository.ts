@@ -2,8 +2,6 @@ import { Track } from 'shared/types/track.type.js';
 
 import tracks from './storage/typetracks.json';
 
-// FIXME: thing's in file structure, buddy
-
 const getAll = (): Track[] => {
   return tracks || [];
 };
