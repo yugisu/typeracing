@@ -1,7 +1,7 @@
 import socketIO from 'socket.io-client';
 
-import { View } from './base.view';
-import { RaceState } from 'shared/types/racestate.type';
+import { StatefulView } from './base.view';
+import { RoomState } from 'shared/types/room-state.type';
 
 type State = {
   track: string;
@@ -11,9 +11,8 @@ type State = {
   countdown: number;
 };
 
-export class RaceView extends View {
-  private io: SocketIOClient.Socket;
-  private state: State = {
+export class RaceView extends StatefulView<State> {
+  state: State = {
     track: '',
     progress: 0,
     username: '',
@@ -21,87 +20,141 @@ export class RaceView extends View {
     countdown: 30,
   };
 
+  private io: SocketIOClient.Socket;
+
   constructor() {
-    super('Race', false);
+    super('🏎️ Race', false);
     this.io = socketIO.connect();
 
     const token = localStorage.getItem('jwt');
     if (!token) {
       location.replace('/login');
+      return;
+    }
+
+    this.io.on('checkJWT', (check: (t: string) => void) => check(token));
+    this.io.on('checkJWTFailed', () => {
+      localStorage.removeItem('jwt');
+      location.replace('/login');
+      return;
+    });
+
+    this.io.on('subscribeResponse', this.onSubscribeResponse);
+
+    this.io.on('roomCountdown', this.onCountdown);
+    this.io.on('roomStart', this.onRoomStart);
+
+    this.io.on('playerConnected', this.onPlayerConnected);
+
+    this.io.on('playerDisconnected', this.onPlayerDisconnected);
+
+    this.io.on('opponentProgress', this.onOpponentProgress);
+  }
+
+  onSubscribeResponse = (
+    username: string,
+    track: string,
+    roomState: RoomState,
+    roomName: string
+  ) => {
+    this.setState({
+      track: track,
+      username: username,
+      progress: roomState.progresses[username],
+      waiting: !roomState.active,
+      countdown: roomState.countdown,
+    });
+
+    document.getElementById('app-title')!.innerText = `🏎️ Race "${roomName}"`;
+
+    this.clearRoot();
+    this.addContents();
+    if (this.state.waiting && this.state.countdown) {
+      this.showCountdown();
     } else {
-      this.io.on('checkJWT', (check: any) => check(token));
-      this.io.on('checkJWTFailed', () => {
-        localStorage.removeItem('jwt');
-        location.replace('/login');
-      });
-
-      this.io.on(
-        'subscribeResponse',
-        (login: string, track: string, raceState: RaceState, roomName: string) => {
-          console.log('got track:', track);
-
-          this.setState({
-            track: track,
-            username: login,
-            progress: raceState.progresses[login],
-            waiting: !raceState.active,
-            countdown: raceState.time,
-          });
-
-          document.getElementById('app-title')!.innerText += ` "${roomName}"`;
-
-          this.addContents();
-          if (this.state.waiting && raceState.time) {
-            this.showCountdown();
-          } else {
-            this.addInteractivity();
-          }
-          Object.entries(raceState.progresses).forEach((player) =>
-            this.addPlayer(...player)
-          );
-        }
-      );
-
-      this.io.on('roomCountdown', this.onCountdown);
-      this.io.on('roomStart', this.onRoomStart);
-
-      this.io.on('playerConnected', ({ userLogin, progress }: any) => {
-        this.addPlayer(userLogin, progress);
-      });
-
-      this.io.on('playerDisconnected', this.onPlayerDisconnected);
-
-      this.io.on('opponentProgress', ({ login, progress }: any) => {
-        this.updatePlayer(login, progress);
-      });
+      this.showTrack();
     }
-  }
-
-  onPlayerDisconnected(name: string) {
-    const playerNode = document.getElementById(`player-${name}`);
-    playerNode && playerNode.classList.add('player--disconnected');
-  }
-
-  onCountdown = (countdown: number) => {
-    if (this.state.waiting) {
-      this.setState({ countdown });
-      document.getElementById('countdown')!.innerText = countdown.toString();
-    }
+    Object.entries(roomState.progresses).forEach((player) => this.addPlayer(...player));
   };
 
-  onRoomStart = (raceState: RaceState) => {
-    this.addContents();
-    this.addInteractivity();
-    Object.entries(raceState.progresses).forEach((player) => this.addPlayer(...player));
+  onPlayerConnected = ({ username, progress }: Player) =>
+    this.addPlayer(username, progress);
+
+  onPlayerDisconnected = (name: string) => {
+    const playerNode = document.getElementById(`player-${name}`);
+    playerNode && playerNode.classList.add('player--disconnected');
+  };
+
+  onCountdown = (countdown: number) => {
+    this.setState({ countdown });
+    document.getElementById('countdown')!.innerText = countdown.toString();
+  };
+
+  onRoomStart = () => {
+    this.showTrack();
+  };
+
+  onOpponentProgress = ({ username, progress }: Player) =>
+    this.updatePlayer(username, progress);
+
+  onTrackKeystroke = (e: KeyboardEvent) => {
+    e.preventDefault();
+
+    const { track, progress } = this.state;
+
+    if (e.key === track[progress]) {
+      const trackElement = document.getElementById('track');
+
+      this.setState({
+        progress: progress + 1,
+      });
+
+      this.io.emit('progressChange', {
+        username: this.state.username,
+        progress: this.state.progress,
+      });
+
+      trackElement!.innerHTML = `
+      <span class="track__completed">${
+        this.state.progress ? track.slice(0, this.state.progress) : ''
+      }</span><span>${track.slice(this.state.progress, track.length)}</span>`;
+
+      this.updatePlayer(this.state.username, this.state.progress);
+    }
   };
 
   showCountdown() {
     const cd = this.create('h1', {
+      className: 'countdown',
       id: 'countdown',
       innerText: this.state.countdown.toString(),
     });
 
-    document.getElementById('track')!.replaceWith(cd);
+    const placeholder = document.getElementById('placeholder');
+    placeholder!.hasChildNodes()
+      ? placeholder!.replaceChild(cd, placeholder!.firstChild!)
+      : placeholder!.append(cd);
+  }
+
+  showTrack() {
+    const { track, progress } = this.state;
+
+    const trackText = this.create('p', {
+      innerHTML: `
+      <span class="track__completed">${
+        progress ? track.slice(0, progress) : ''
+      }</span><span>${track.slice(progress, track.length)}</span>`,
+      className: 'track',
+      id: 'track',
+    });
+
+    const placeholder = document.getElementById('placeholder');
+
+    placeholder!.hasChildNodes()
+      ? placeholder!.replaceChild(trackText, placeholder!.firstChild!)
+      : placeholder!.append(trackText);
+
+    this.addInteractivity();
   }
 
   clearRoot(...nodes: HTMLElement[]) {
@@ -113,21 +166,13 @@ export class RaceView extends View {
   }
 
   addContents() {
-    const { track, progress } = this.state;
-
-    this.clearRoot();
-
     const content = this.create('div', {
       className: 'columns',
     });
 
-    const trackText = this.create('p', {
-      innerHTML: `
-      <span class="track__completed">${
-        progress ? track.slice(0, progress) : ''
-      }</span><span>${track.slice(progress, track.length)}</span>`,
-      className: 'track',
-      id: 'track',
+    const placeholderContent = this.create('div', {
+      className: 'placeholder',
+      id: 'placeholder',
     });
 
     const players = this.create('div', {
@@ -135,43 +180,19 @@ export class RaceView extends View {
       id: 'players',
     });
 
-    content.append(trackText, players);
+    content.append(placeholderContent, players);
     this.root.append(content);
   }
 
   addInteractivity() {
-    window.addEventListener('keypress', (e) => {
-      e.preventDefault();
-
-      const { track, progress } = this.state;
-
-      if (e.key === track[progress]) {
-        const trackElement = document.getElementById('track') as HTMLSpanElement;
-
-        this.setState({
-          progress: progress + 1,
-        });
-
-        this.io.emit('progressChange', {
-          login: this.state.username,
-          progress: this.state.progress,
-        });
-
-        trackElement.innerHTML = `
-        <span class="track__completed">${
-          progress + 1 ? track.slice(0, progress + 1) : ''
-        }</span><span>${track.slice(progress + 1, track.length)}</span>`;
-
-        this.updatePlayer(this.state.username, progress + 1);
-      }
-    });
+    window.addEventListener('keypress', this.onTrackKeystroke);
   }
 
   addPlayer(name: string, progress = 0) {
     const players = document.getElementById('players');
 
     const player = this.create('div', {
-      className: 'player',
+      className: `player${name === this.state.username ? ' player--self' : ''}`,
       id: `player-${name}`,
       innerHTML: `
         <h3 class="player__name">${name}</h3>
@@ -195,8 +216,9 @@ export class RaceView extends View {
     playerNode!.classList.remove('player--disconnected');
     playerNode!.querySelector('progress')!.value = progress;
   }
-
-  setState = (change: Partial<State>) => {
-    this.state = { ...this.state, ...change };
-  };
 }
+
+type Player = {
+  username: string;
+  progress: number;
+};

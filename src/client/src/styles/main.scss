@@ -6,6 +6,14 @@ $secondary-light: #d6f1f5;
 $black: #262322;
 $grey: #4a4a48;
 
+@mixin cardy() {
+  padding: 0.5rem;
+
+  border: solid 1px lighten($grey, 50%);
+  border-radius: 0.25rem;
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
+}
+
 html {
   box-sizing: border-box;
   font-family: Roboto, sans-serif;
@@ -25,11 +33,7 @@ textarea,
 button {
   outline: none;
 
-  padding: 0.5rem;
-  border: solid 1px $grey;
-  border-radius: 0.25rem;
-
-  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
+  @include cardy();
 }
 
 button {
@@ -55,6 +59,7 @@ button:active {
 }
 
 body {
+  min-height: 100vh;
   margin: 0;
   padding: 0;
 }
@@ -69,11 +74,13 @@ body {
   box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
 
   &__logo {
-    width: 7rem;
-    height: 100%;
+    width: 6.5rem;
+    height: 2rem;
+    // height: 100%;
 
+    padding: 0 0.25rem;
     display: flex;
-    justify-content: center;
+    justify-content: start;
     align-items: center;
 
     color: #000000;
@@ -83,22 +90,59 @@ body {
     text-shadow: 1px 1px 1px $secondary-light;
     text-decoration: none;
 
-    background: $primary;
-    box-shadow: 1px 1px 5px $secondary-light, 0 5px 10px -5px $primary;
+    background-color: lighten($primary, 10%);
+    @include cardy();
+    border-color: lighten($grey, 25%);
+
+    transition: width 0.16s;
+
+    &:hover {
+      width: 8.5rem;
+    }
   }
 }
 
 .main {
-  padding: 1rem 6rem;
+  height: 100%;
 
+  padding: 1rem 6rem;
   display: flex;
   flex-direction: column;
+
+  > h1 {
+    text-align: center;
+  }
+}
+
+.to-race {
+  margin-top: 4rem;
+
+  width: 20rem;
+  @include cardy();
+  align-self: center;
+
+  text-align: center;
+  text-decoration: none;
+  font-size: 1.2rem;
+
+  background: lighten($primary, 23%);
+  transform: translateY(0);
+  transition: all 0.16s;
+
+  &:hover {
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
 }
 
 .login-form {
   max-width: 400px;
 
-  padding: 0.5rem;
+  padding: 0.5rem 0;
   display: grid;
   grid-auto-flow: row;
   row-gap: 0.5rem;
@@ -107,10 +151,16 @@ body {
 }
 
 .columns {
+  width: 100%;
+  height: 100%;
+  margin-top: 1rem;
+
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  column-gap: 2rem;
+  grid: '... ...' / minmax(20rem, 40rem) minmax(10rem, 25rem);
+  align-items: start;
+  align-content: center;
+  justify-content: center;
+  gap: 2rem;
 
   > * {
     height: fit-content;
@@ -119,47 +169,150 @@ body {
 
 .track {
   max-width: 40rem;
-  font-size: 1.2rem;
+  margin: 0;
+
+  padding: 0.5rem;
+
+  font-size: 1.3rem;
+
+  @include cardy();
+
+  animation: fade-in 0.5s 1;
 
   &__completed {
     position: relative;
-    background: $primary;
+    background-color: lighten($primary, 5%);
 
-    animation: blinking 1s 200ms alternate infinite;
+    animation: blinking 1s 500ms alternate infinite;
   }
 }
 
 .players {
+  width: 100%;
+
   padding: 0.5rem;
   display: flex;
   flex-direction: column;
+  overflow-x: visible;
+  overflow-y: auto;
 
-  background: lighten($grey, 60%);
+  background-color: $secondary-light;
+  @include cardy();
 }
 
 .player {
+  position: relative;
   padding: 0.5rem;
 
-  &__name {
-    margin: 0;
+  background: lighten($secondary-light, 6%);
+  @include cardy();
+
+  transition: opacity 0.16s;
+
+  & + & {
+    margin-top: 0.5rem;
   }
 
-  &__progress {
-    width: 100%;
+  &--self {
+    background: #ffffff;
+
+    &::before {
+      content: '🏎️';
+      position: absolute;
+      top: 0;
+      left: 0;
+
+      height: 1.4rem;
+      width: 1.4rem;
+
+      @include cardy();
+      border-radius: 50%;
+      padding: 0;
+      padding-bottom: 0.5rem;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      line-height: 1.4rem;
+      font-size: 0.9rem;
+
+      background: #ffffff;
+
+      transform: translate(-30%, -30%);
+    }
   }
 
   &--disconnected {
-    opacity: 0.3;
+    opacity: 0.5;
+  }
+
+  &__name {
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    display: flex;
+    align-items: baseline;
+  }
+
+  &__progress {
+    position: relative;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    margin-top: 0.2rem;
+
+    &::-webkit-progress-bar {
+      background-color: #ffffff;
+      @include cardy();
+      padding: 0;
+      box-shadow: none;
+    }
+
+    &::-webkit-progress-value {
+      margin-left: -0.2px;
+      height: 101%;
+
+      background-color: $primary;
+      border-radius: 0.15rem 0 0 0.15rem;
+      border-right: 3px solid lighten($grey, 20%);
+      box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.2), 2px 1px 2px -1px rgba(0, 0, 0, 0.2);
+
+      transition: all 0.16s;
+    }
+  }
+}
+
+.countdown {
+  margin: 0;
+  height: 5rem;
+  width: 100%;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  @include cardy();
+}
+
+@keyframes fade-in {
+
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
   }
 }
 
 @keyframes blinking {
 
   from {
-    background-color: $primary;
+    background-color: lighten($primary, 5%);
   }
 
   to {
-    background-color: lighten($primary, 10%);
+    background-color: lighten($primary, 15%);
   }
 }

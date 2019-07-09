@@ -32,3 +32,16 @@ export class View {
     this.onRender();
   }
 }
+
+interface Stateful<T extends object> {
+  state: T | {};
+  setState: (changes: Partial<T>) => void;
+}
+
+export class StatefulView<T extends object> extends View implements Stateful<T> {
+  state = {};
+
+  setState = (changes: Partial<T>) => {
+    this.state = { ...this.state, ...changes };
+  };
+}

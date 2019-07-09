@@ -1,122 +1,132 @@
 import jwt from 'jsonwebtoken';
 
 import { User } from 'shared/types/user.type';
-import { RaceState } from 'shared/types/racestate.type';
-import { trackRepository } from 'server/repository/tracks.repository';
+import { RoomState } from 'shared/types/room-state.type';
+import { getRandomTrack } from 'server/services/tracks.service';
 
-const races: { [roomName: string]: RaceState } = {
-  first: {
-    active: false,
-    time: 30,
-    progresses: {},
-    disconnected: new Set(),
-  },
-};
+const rooms: Map<string, RoomState> = new Map();
 
-const onConnection = async () => {
-  const track = await trackRepository.getById('1');
-
-  let roomName: string;
-
+const onConnection = async (io: SocketIO.Server) => {
   return (socket: SocketIO.Socket) => {
-    let userLogin: string;
+    let roomName: string;
+    let room: RoomState;
+    let username: string;
     let roomCountdown: NodeJS.Timeout;
 
-    socket.emit('checkJWT', (token: string) => {
+    socket.emit('checkJWT', async (token: string) => {
       try {
         const userFromToken = jwt.verify(token, 'secret') as User;
-        userLogin = userFromToken!.login;
+        username = userFromToken!.login;
 
-        roomName = findRoom(userLogin);
+        [roomName, room] = await findRoom(username);
 
         socket.join(roomName);
-        races[roomName].disconnected.delete(userLogin);
+        room.disconnected.delete(username);
 
-        // Set countdown
-        if (races[roomName].progresses[userLogin] === undefined) {
-          if (Object.keys(races[roomName].progresses).length === 0) {
-            roomCountdown = setInterval(() => {
-              if (races[roomName].time > 0) {
-                socket.in(roomName).emit('roomCountdown', races[roomName].time);
-                races[roomName].time = races[roomName].time - 1;
-              } else {
-                races[roomName].active = true;
+        console.log('>>>', username, 'joined room', roomName);
+        if (room.progresses[username] === undefined) {
+          room.progresses[username] = 0;
 
-                socket.emit('roomStart', races[roomName]);
-                clearInterval(roomCountdown);
-              }
-            }, 500);
-          }
-
-          races[roomName].progresses[userLogin] = 0;
+          console.log('>>>', username, 'is a newbie to this one');
         }
 
-        socket.emit(
-          'subscribeResponse',
-          userLogin,
-          track!.text,
-          races[roomName],
-          roomName
-        );
+        socket.emit('subscribeResponse', username, room.track, room, roomName);
+
+        // Set countdown if room was empty before
+        if (Object.keys(room.progresses).length <= 1) {
+          console.log('>> Room', roomName, 'will start soon');
+
+          roomCountdown = setInterval(() => {
+            if (room.countdown > 0) {
+              io.in(roomName).emit('roomCountdown', room.countdown);
+              room.countdown = room.countdown - 1;
+
+              console.log('>> Room', roomName, 'countdown:', room.countdown);
+            } else {
+              room.active = true;
+
+              console.log('>> Room', roomName, 'starting');
+              io.in(roomName).emit('roomStart');
+              clearInterval(roomCountdown);
+            }
+          }, 500);
+        }
 
         socket.to(roomName).emit('playerConnected', {
-          userLogin,
-          progress: races[roomName].progresses[userLogin],
+          username,
+          progress: room.progresses[username],
         });
       } catch (error) {
         socket.emit('checkJWTFailed');
+        socket.disconnect(true);
       }
     });
 
     socket.on('disconnect', () => {
-      socket.to(roomName).emit('playerDisconnected', userLogin);
-      races[roomName].disconnected.add(userLogin);
-      let shouldStopRace = true;
-      Object.keys(races[roomName].progresses).forEach((user) => {
-        shouldStopRace = shouldStopRace && races[roomName].disconnected.has(user);
-      });
+      try {
+        console.log('>>>', username, 'disconnected');
+        io.to(roomName).emit('playerDisconnected', username);
 
-      if (shouldStopRace) {
-        addRoom(roomName);
+        room.disconnected.add(username);
+
+        const shouldStopRace = Object.keys(room.progresses).reduce((should, user) => {
+          return should && room.disconnected.has(user);
+        }, true);
+
+        if (shouldStopRace) {
+          console.log('>> Room', roomName, 'STOPPED');
+          clearInterval(roomCountdown);
+          rooms.delete(roomName);
+        }
+      } catch (err) {
+        socket.disconnect(true);
+        console.error(err);
       }
     });
 
-    socket.on('progressChange', ({ login, progress }) => {
-      races[roomName].progresses[login] = progress;
+    socket.on('progressChange', ({ username, progress }) => {
+      room.progresses[username] = progress;
 
-      socket.broadcast.emit('opponentProgress', { login, progress });
+      socket.broadcast.emit('opponentProgress', { username, progress });
     });
   };
 };
 
 /**
- * Finds not active room in which given user did not take part earlier
+ * Finds a room in which user taken part earlier or not an active one
  */
-function findRoom(username: string) {
-  const freeRoom = Object.entries(races).find(
-    ([name, state]) => state.progresses[username] !== undefined || !state.active
-  );
+async function findRoom(username: string): Promise<[string, RoomState]> {
+  let freeRoom: [string, RoomState] | undefined = undefined;
+  for (const [name, state] of rooms.entries()) {
+    if (state.progresses[username] !== undefined || !state.active) {
+      freeRoom = [name, state];
+    }
+  }
 
   if (!freeRoom) {
-    return addRoom();
+    return await addRoom();
   } else {
-    return freeRoom[0];
+    return freeRoom;
   }
 }
 
-function addRoom(name?: string) {
+async function addRoom(name?: string): Promise<[string, RoomState]> {
   const roomName = name || Math.random().toString();
 
-  races[roomName] = {
+  const track = (await getRandomTrack())!.text;
+
+  const newRoom: RoomState = {
     active: false,
-    time: 30,
+    countdown: 15,
+    track,
     progresses: {},
     disconnected: new Set(),
   };
 
-  return roomName;
+  rooms.set(roomName, newRoom);
+  return [roomName, newRoom];
 }
 
 export const initializeSocket = async (io: SocketIO.Server) => {
-  io.on('connect', await onConnection());
+  io.on('connect', await onConnection(io));
 };
