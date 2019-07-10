@@ -15,7 +15,11 @@ const onConnection = (io: SocketIO.Server) => {
         throw 'No token sent!';
       }
 
-      const user = jwt.verify(socket.handshake.query.token, 'secret') as User | string;
+      const user = jwt.verify(
+        socket.handshake.query.token,
+        process.env.SECRET_KEY || 'secret'
+      ) as User | string;
+
       if (typeof user === 'string' || !user.hasOwnProperty('login'))
         throw 'Invalid token';
 
@@ -31,26 +35,6 @@ const onConnection = (io: SocketIO.Server) => {
       socket.disconnect(true);
       return;
     }
-
-    socket.emit('checkJWT', (token: string) => {
-      try {
-        const user = jwt.verify(token, 'secret') as User | string;
-
-        if (typeof user === 'string' || !user.hasOwnProperty('login'))
-          throw 'Invalid token';
-
-        username = user.login;
-
-        room = findRoom(io, username);
-        socket.join(room.state.name);
-
-        room.notifier.emitLocal('playerJoined', username);
-        socket.emit('subscribeResponse', username, room.state);
-      } catch (error) {
-        socket.emit('checkJWTFailed');
-        socket.disconnect(true);
-      }
-    });
 
     socket.on('playerProgress', (username: string, progress: number) => {
       room.notifier.emit('playerProgress', username, progress);

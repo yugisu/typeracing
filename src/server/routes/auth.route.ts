@@ -9,7 +9,9 @@ router.post('/', async (req, res) => {
   const dbUser = await userRepository.getByLogin(reqUser.login);
 
   if (dbUser && reqUser.password === dbUser.password) {
-    const token = jwt.sign(reqUser, 'secret', { expiresIn: '24h' });
+    const token = jwt.sign(reqUser, process.env.SECRET_KEY || 'secret', {
+      expiresIn: '24h',
+    });
     res.status(200).json({ auth: true, token });
   } else {
     res.status(401).json({ auth: false });

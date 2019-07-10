@@ -3,18 +3,18 @@ import passport from 'passport';
 import { Strategy, ExtractJwt } from 'passport-jwt';
 import { userRepository } from 'server/repository/user.repository';
 
+if (!process.env.SECRET_KEY) console.warn('> You should specify SECRET_KEY in .env file');
+
 const jwtStrategy = new Strategy(
   {
     jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-    secretOrKey: 'secret',
+    secretOrKey: process.env.SECRET_KEY || 'secret',
   },
   async ({ id: login }, done) => {
     try {
-      const user = userRepository.getByLogin(login);
+      const user = await userRepository.getByLogin(login);
 
-      return user
-        ? done(null, user)
-        : done({ status: 401, message: 'Invalid token' });
+      return user ? done(null, user) : done({ status: 401, message: 'Invalid token' });
     } catch (err) {
       done(err);
     }
