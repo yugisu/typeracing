@@ -7,6 +7,7 @@ import { Stateful } from 'shared/helpers/stateful.interface';
 import { getRandomTrack } from 'server/services/tracks.service';
 import { Commentator } from './commentator.controller';
 
+// Паттерн Фасад ( Facade )
 class RoomEventEmitter {
   private eventEmitter: EventEmitter;
   private socket: SocketIO.Server;

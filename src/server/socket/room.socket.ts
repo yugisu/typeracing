@@ -2,6 +2,7 @@ import { verify } from 'jsonwebtoken';
 
 import { Room } from 'server/controllers/room.controller';
 import { User } from 'shared/types/user.type';
+import { RoomState } from 'shared/types/room-state.type';
 
 const rooms: Map<string, Room> = new Map();
 
@@ -15,7 +16,23 @@ const findRoom = (username: string) => {
   return null;
 };
 
-const createRoom = (io: SocketIO.Server): Room => new Room(io);
+// Паттерн Проксі ( Proxy )
+const proxyHandler: ProxyHandler<Room> = {
+  set: () => {
+    console.warn("Please, don't try to set property on Room object!");
+    return true;
+  },
+  has: (target, prop) => {
+    return ['state', 'commentator', 'notifier', 666].includes(prop as string | number);
+  },
+};
+
+// Патерн Фабрична функція ( Factory Function )
+const createRoom = (io: SocketIO.Server): Room => {
+  const room = new Proxy(new Room(io), proxyHandler);
+  room.state = {} as RoomState;
+  return room;
+};
 
 const recordRoom = (roomMap: Map<string, Room>) => (room: Room): Room => {
   roomMap.set(room.state.name, room);
