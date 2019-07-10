@@ -2,7 +2,8 @@ import socketIO from 'socket.io-client';
 
 import { StatefulView } from './base.view';
 import { RoomState } from 'shared/types/room-state.type';
-import { RoomEvent } from 'shared/types/room-event.type';
+
+import dinoCat from '../../static/dino-cat.png';
 
 type State = {
   track: string;
@@ -45,7 +46,9 @@ export class RaceView extends StatefulView<State> {
 
       .on('playerJoined', this.onPlayerJoined)
       .on('playerLeft', this.onPlayerLeft)
-      .on('playerProgress', this.onPlayerProgress);
+      .on('playerProgress', this.onPlayerProgress)
+
+      .on('commentatorMessage', this.onCommentatorMessage);
   }
 
   onAuthFail = () => {
@@ -182,6 +185,11 @@ export class RaceView extends StatefulView<State> {
     }
   };
 
+  onCommentatorMessage = (message: string) => {
+    const commentatorPhraseElem = document.getElementById('commentator__value');
+    commentatorPhraseElem!.innerHTML = `<span>${message}</span>`;
+  };
+
   showCountdown() {
     this.removeInteractivity();
 
@@ -246,10 +254,22 @@ export class RaceView extends StatefulView<State> {
 
     const timeLeftElem = createBarElem('Time', time.toString(), 'room-time');
 
-    let playerAmount = Object.keys(progresses).length.toString();
+    const playerAmount = Object.keys(progresses).length.toString();
     const playerAmountElem = createBarElem('Players', playerAmount, 'player-amount');
 
-    topBar!.append(roomNameElem, timeLeftElem, playerAmountElem);
+    const commentatorElem = createBarElem(
+      'Dino Cat, the Commentator',
+      'Hello!',
+      'commentator'
+    );
+    const commentatorAvatar = this.create<HTMLImageElement>('img', {
+      id: 'commentator__avatar',
+      src: dinoCat,
+    });
+
+    commentatorElem.append(commentatorAvatar);
+
+    topBar!.append(roomNameElem, timeLeftElem, playerAmountElem, commentatorElem);
   }
 
   addPlayer(name: string, progress = 0) {

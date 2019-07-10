@@ -27,11 +27,6 @@ export class LoginView extends View {
     form.onsubmit = (e) => {
       e.preventDefault();
 
-      console.log('data:', {
-        login: loginInput.value,
-        password: passwordInput.value,
-      });
-
       fetch('/login', {
         method: 'POST',
         body: JSON.stringify({

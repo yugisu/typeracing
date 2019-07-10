@@ -356,6 +356,42 @@ body {
   align-items: center;
 
   @include cardy();
+  animation: fade-in 0.5s 1;
+}
+
+#commentator {
+  flex: 1 0;
+  max-width: unset;
+
+  display: grid;
+  grid:
+    'name avatar' auto
+    'phrase avatar' 1fr /
+    1fr 2.5rem;
+
+  justify-items: end;
+  align-items: center;
+  column-gap: 0.5rem;
+
+  justify-self: flex-end;
+
+  &__name {
+    grid-area: name;
+  }
+
+  &__value {
+    grid-area: phrase;
+
+    > * {
+      animation: fade-in 0.3s 1;
+    }
+  }
+
+  &__avatar {
+    grid-area: avatar;
+
+    transform: rotateY(180deg);
+  }
 }
 
 @keyframes fade-in {
