@@ -120,8 +120,6 @@ export class Room implements Stateful<RoomState> {
 
   private onTime = (time: number) => {
     if (time > 0) {
-      console.log('>> Room', this.state.name, 'time:', time);
-
       this.setState({ time: time - 1 });
     } else {
       this.notifier.emitLocal('roomEnd');
