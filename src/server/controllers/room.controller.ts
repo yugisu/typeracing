@@ -5,16 +5,20 @@ import { RoomEvent } from 'shared/types/room-event.type';
 import { Stateful } from 'shared/helpers/stateful.interface';
 
 import { getRandomTrack } from 'server/services/tracks.service';
+import { Commentator } from './commentator.controller';
 
 class RoomEventEmitter {
   private eventEmitter: EventEmitter;
   private socket: SocketIO.Server;
   private roomName: string;
+  private attachments: RoomNotifierAttachment[];
 
   constructor(socket: SocketIO.Server, roomName: string) {
-    this.eventEmitter = new EventEmitter();
     this.socket = socket;
     this.roomName = roomName;
+
+    this.eventEmitter = new EventEmitter();
+    this.attachments = [];
   }
 
   emit = (name: RoomEvent, ...args: any[]) => {
@@ -30,6 +34,8 @@ class RoomEventEmitter {
   };
 
   emitSocket = (name: RoomEvent, ...args: any[]) => {
+    this.attachments.forEach((a) => a.emit(name, ...args));
+
     this.socket.to(this.roomName).emit(name, ...args);
     return this;
   };
@@ -38,11 +44,16 @@ class RoomEventEmitter {
     this.eventEmitter.on(name, listener);
     return this;
   };
+
+  addAttachment = (a: RoomNotifierAttachment) => {
+    this.attachments.push(a);
+  };
 }
 
 export class Room implements Stateful<RoomState> {
   state: RoomState;
   notifier: RoomEventEmitter;
+  commentator: Commentator;
 
   countdowner: NodeJS.Timeout | undefined;
   timer: NodeJS.Timeout | undefined;
@@ -55,16 +66,21 @@ export class Room implements Stateful<RoomState> {
     const initialState: RoomState = {
       track,
       time,
+      TIME: time,
       name,
       active: false,
       countdown: 15,
+      COUNTDOWN: 15,
       progresses: {},
       disconnected: new Set(),
       finished: new Set(),
     };
 
     this.state = { ...initialState, ...givenState };
+
     this.notifier = this.initializeRoomNotifier(io);
+    this.commentator = new Commentator(io, this.getState);
+    this.notifier.addAttachment(this.commentator);
 
     this.notifier.emit('roomCreated');
   }
@@ -93,8 +109,8 @@ export class Room implements Stateful<RoomState> {
 
   private onCountdown = (countdown: number) => {
     if (countdown > 0) {
-      this.setState({ countdown: countdown - 1 });
       this.notifier.emitSocket('roomCountdown', this.state.countdown);
+      this.setState({ countdown: countdown - 1 });
     } else {
       this.notifier.emitLocal('roomStart');
     }
@@ -137,8 +153,10 @@ export class Room implements Stateful<RoomState> {
     this.setState({
       track,
       time,
+      TIME: time,
       active: false,
       countdown: 30,
+      COUNTDOWN: 30,
     });
 
     this.notifier.emitSocket('roomEnd', this.state.countdown, this.state.time);
@@ -230,7 +248,13 @@ export class Room implements Stateful<RoomState> {
     if (shouldFinish) this.notifier.emitLocal('roomEnd');
   };
 
+  getState = () => this.state;
+
   setState = (changes: Partial<RoomState>) => {
     this.state = { ...this.state, ...changes };
   };
+}
+
+export interface RoomNotifierAttachment {
+  emit: (name: RoomEvent, ...args: any[]) => this;
 }
