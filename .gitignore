@@ -13,3 +13,6 @@ dist
 
 # Local configuration
 .env
+
+# Logs
+debug.log
