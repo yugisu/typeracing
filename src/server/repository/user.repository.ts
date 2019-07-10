@@ -24,8 +24,6 @@ const getByLogin = async (login: string): Promise<User | null> => {
   const users = await getAll();
   const user = users.find((user) => user.login === login);
 
-  console.log('From users:', users, 'got:', user, 'expected login:', login);
-
   return user === undefined ? null : user;
 };
 

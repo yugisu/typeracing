@@ -46,14 +46,6 @@ export class RaceView extends StatefulView<State> {
       .on('playerJoined', this.onPlayerJoined)
       .on('playerLeft', this.onPlayerLeft)
       .on('playerProgress', this.onPlayerProgress);
-
-    this.io.on('HEY', (arg: any) => {
-      console.log('I hear something:', arg);
-    });
-
-    this.io.on('haga', (name: string) => {
-      console.log(name);
-    });
   }
 
   onAuthFail = () => {

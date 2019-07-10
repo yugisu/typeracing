@@ -85,6 +85,7 @@ export class Room implements Stateful<RoomState> {
   };
 
   private startCountdown = () => {
+    console.log('>> Room', this.state.name, 'will start in', this.state.countdown);
     this.countdowner = setInterval(() => {
       this.notifier.emitLocal('roomCountdown', this.state.countdown);
     }, 1000);
@@ -92,8 +93,6 @@ export class Room implements Stateful<RoomState> {
 
   private onCountdown = (countdown: number) => {
     if (countdown > 0) {
-      console.log('>> Room', this.state.name, 'countdown:', countdown);
-
       this.setState({ countdown: countdown - 1 });
       this.notifier.emitSocket('roomCountdown', this.state.countdown);
     } else {
@@ -102,7 +101,7 @@ export class Room implements Stateful<RoomState> {
   };
 
   private onStart = () => {
-    console.log('>> Room', this.state.name, 'starting');
+    console.log('>> Room', this.state.name, 'starting, time:', this.state.time);
     this.countdowner && clearInterval(this.countdowner);
 
     const { progresses } = this.state;
