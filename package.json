@@ -10,8 +10,9 @@
     "node": ">=10.1.0"
   },
   "scripts": {
-    "start": "parcel build -d src/client/dist src/client/src/index.html --no-source-maps --log-level 1 && ts-node -r dotenv/config -r tsconfig-paths/register ./src/server",
-    "dev": "concurrently \"parcel watch -d src/client/dist src/client/src/index.html\" \"nodemon\""
+    "start": "ts-node -r dotenv/config -r tsconfig-paths/register ./src/server",
+    "dev": "concurrently \"parcel watch -d src/client/dist src/client/src/index.html\" \"nodemon\"",
+    "build": "parcel build -d src/client/dist src/client/src/index.html --no-source-maps --log-level 1"
   },
   "license": "ISC",
   "dependencies": {
@@ -19,23 +20,23 @@
     "express": "^4.17.1",
     "passport": "^0.4.0",
     "passport-jwt": "^4.0.0",
+    "jsonwebtoken": "^8.5.1",
     "socket.io": "^2.2.0",
-    "socket.io-client": "^2.2.0"
-  },
-  "devDependencies": {
+    "socket.io-client": "^2.2.0",
+    "ts-node": "^8.3.0",
     "@types/express": "^4.17.0",
     "@types/node": "^12.0.12",
     "@types/passport": "^1.0.0",
     "@types/passport-jwt": "^3.0.1",
     "@types/socket.io": "^2.1.2",
     "@types/socket.io-client": "^1.4.32",
-    "concurrently": "^4.1.1",
-    "jsonwebtoken": "^8.5.1",
-    "nodemon": "^1.19.1",
-    "parcel": "^1.12.3",
-    "sass": "^1.22.3",
-    "ts-node": "^8.3.0",
     "tsconfig-paths": "^3.8.0",
     "typescript": "^3.5.2"
+  },
+  "devDependencies": {
+    "concurrently": "^4.1.1",
+    "nodemon": "^1.19.1",
+    "parcel": "^1.12.3",
+    "sass": "^1.22.3"
   }
 }
